@@ -1604,6 +1604,7 @@ let print_about_hyp_globs ?loc ref_or_by_not glopt =
 
 	       
 let vernac_print ?loc = let open Feedback in function
+  | PrintVersion -> msg_notice (Mltop.print_version ())
   | PrintTables -> msg_notice (print_tables ())
   | PrintFullContext-> msg_notice (print_full_context_typ ())
   | PrintSectionContext qid -> msg_notice (print_sec_context_typ qid)

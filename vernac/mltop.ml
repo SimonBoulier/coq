@@ -445,3 +445,12 @@ let print_gc () =
     str "stack_size: " ++ int stat.Gc.stack_size
   in
   hv 0 msg
+
+
+let version () =
+  Printf.sprintf "The Coq Proof Assistant, version %s (%s)\n" Coq_config.version Coq_config.date
+  ^ Printf.sprintf "compiled on %s with OCaml %s\n" Coq_config.compile_date Coq_config.caml_version
+
+let print_version () =
+  str (version ())
+  ++ str (Printf.sprintf "Process name: %s\n" Sys.executable_name)

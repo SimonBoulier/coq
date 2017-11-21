@@ -86,3 +86,6 @@ val declare_ml_modules : Vernacexpr.locality_flag -> string list -> unit
 val print_ml_path : unit -> Pp.std_ppcmds
 val print_ml_modules : unit -> Pp.std_ppcmds
 val print_gc : unit -> Pp.std_ppcmds
+
+val version : unit -> string
+val print_version : unit -> Pp.std_ppcmds

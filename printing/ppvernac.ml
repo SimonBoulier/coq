@@ -461,6 +461,8 @@ open Decl_kinds
       keyword "Print Canonical Structures"
     | PrintTables ->
       keyword "Print Tables"
+    | PrintVersion ->
+      keyword "Print Version"
     | PrintHintGoal ->
       keyword "Print Hint"
     | PrintHint qid ->

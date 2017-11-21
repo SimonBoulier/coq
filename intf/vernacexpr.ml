@@ -43,6 +43,7 @@ type goal_reference =
 
 type printable =
   | PrintTables
+  | PrintVersion
   | PrintFullContext
   | PrintSectionContext of reference
   | PrintInspect of int
