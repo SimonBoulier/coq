@@ -83,6 +83,8 @@ sig
   val map2_i : (int -> 'a -> 'b -> 'c) -> 'a array -> 'b array -> 'c array
   val map3 :
     ('a -> 'b -> 'c -> 'd) -> 'a array -> 'b array -> 'c array -> 'd array
+  val map3_i :
+    (int -> 'a -> 'b -> 'c -> 'd) -> 'a array -> 'b array -> 'c array -> 'd array
 
   val map_left : ('a -> 'b) -> 'a array -> 'b array
   (** As [map] but guaranteed to be left-to-right. *)
@@ -105,7 +107,12 @@ sig
   (** Same than [fold_left2_map] but passing the index of the array *)
 
   val fold_right2_map : ('a -> 'b -> 'c -> 'd * 'c) -> 'a array -> 'b array -> 'c -> 'd array * 'c
-  (** Same with two arrays, folding on the left *)
+  (** Same with two arrays, folding on the right *)
+
+  val fold_right2_map_i : (int -> 'a -> 'b -> 'c -> 'd * 'c) -> 'a array -> 'b array -> 'c -> 'd array * 'c
+  (** Same than [fold_right2_map] but passing the index of the array *)
+
+  val fold_right3_map : ('a -> 'b -> 'c -> 'd -> 'e * 'd) -> 'a array -> 'b array -> 'c array -> 'd -> 'e array * 'd
 
   val distinct : 'a array -> bool
   (** Return [true] if every element of the array is unique (for default 
@@ -126,6 +133,10 @@ sig
     val map : ('a -> 'a) -> 'a array -> 'a array
     (** [Smart.map f a] behaves as [map f a] but returns [a] instead of a copy when
         [f x == x] for all [x] in [a]. *)
+
+    val mapi : (int -> 'a -> 'a) -> 'a array -> 'a array
+    (** [Smart.mapi f a] behaves as [mapi f a] but returns [a] instead of a copy when
+        [f i x == x] for all [x] in [a]. *)
 
     val map2 : ('a -> 'b -> 'b) -> 'a array -> 'b array -> 'b array
     (** [Smart.map2 f a b] behaves as [map2 f a b] but returns [a] instead of a copy when

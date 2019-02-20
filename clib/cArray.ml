@@ -52,6 +52,8 @@ sig
   val map2_i : (int -> 'a -> 'b -> 'c) -> 'a array -> 'b array -> 'c array
   val map3 :
     ('a -> 'b -> 'c -> 'd) -> 'a array -> 'b array -> 'c array -> 'd array
+  val map3_i :
+    (int -> 'a -> 'b -> 'c -> 'd) -> 'a array -> 'b array -> 'c array -> 'd array
   val map_left : ('a -> 'b) -> 'a array -> 'b array
   val iter2_i : (int -> 'a -> 'b -> unit) -> 'a array -> 'b array -> unit
   val fold_left_map : ('a -> 'b -> 'a * 'c) -> 'a -> 'b array -> 'a * 'c array
@@ -59,6 +61,8 @@ sig
   val fold_left2_map : ('a -> 'b -> 'c -> 'a * 'd) -> 'a -> 'b array -> 'c array -> 'a * 'd array
   val fold_left2_map_i : (int -> 'a -> 'b -> 'c -> 'a * 'd) -> 'a -> 'b array -> 'c array -> 'a * 'd array
   val fold_right2_map : ('a -> 'b -> 'c -> 'd * 'c) -> 'a array -> 'b array -> 'c -> 'd array * 'c
+  val fold_right2_map_i : (int -> 'a -> 'b -> 'c -> 'd * 'c) -> 'a array -> 'b array -> 'c -> 'd array * 'c
+  val fold_right3_map : ('a -> 'b -> 'c -> 'd -> 'e * 'd) -> 'a array -> 'b array -> 'c array -> 'd -> 'e array * 'd
   val distinct : 'a array -> bool
   val rev_of_list : 'a list -> 'a array
   val rev_to_list : 'a array -> 'a list
@@ -66,6 +70,7 @@ sig
   module Smart :
   sig
     val map : ('a -> 'a) -> 'a array -> 'a array
+    val mapi : (int -> 'a -> 'a) -> 'a array -> 'a array
     val map2 : ('a -> 'b -> 'b) -> 'a array -> 'b array -> 'b array
     val fold_left_map : ('a -> 'b -> 'a * 'b) -> 'a -> 'b array -> 'a * 'b array
     val fold_left2_map : ('a -> 'b -> 'c -> 'a * 'c) -> 'a -> 'b array -> 'c array -> 'a * 'c array
@@ -342,7 +347,7 @@ let map2_i f v1 v2 =
     res
   end
 
-let map3 f v1 v2 v3 =
+let map3_i f v1 v2 v3 =
   let len1 = Array.length v1 in
   let () =
     if len1 <> Array.length v2 || len1 <> Array.length v3
@@ -351,12 +356,14 @@ let map3 f v1 v2 v3 =
   if Int.equal len1 0 then
     [| |]
   else begin
-    let res = Array.make len1 (f (uget v1 0) (uget v2 0) (uget v3 0)) in
+    let res = Array.make len1 (f 0 (uget v1 0) (uget v2 0) (uget v3 0)) in
     for i = 1 to pred len1 do
-      Array.unsafe_set res i (f (uget v1 i) (uget v2 i) (uget v3 i))
+      Array.unsafe_set res i (f i (uget v1 i) (uget v2 i) (uget v3 i))
     done;
     res
   end
+
+let map3 f = map3_i (fun i -> f)
 
 let map_left f a = (* Ocaml does not guarantee Array.map is LR *)
   let l = Array.length a in (* (even if so), then we rewrite it *)
@@ -393,12 +400,14 @@ let fold_left_map f e v =
   let v' = Array.map (fun x -> let (e,y) = f !e' x in e' := e; y) v in
   (!e',v')
 
-let fold_right2_map f v1 v2 e =
+let fold_right2_map_i f v1 v2 e =
   let e' = ref e in
   let v' =
-    map2 (fun x1 x2 -> let (y,e) = f x1 x2 !e' in e' := e; y) v1 v2
+    map2_i (fun i x1 x2 -> let (y,e) = f i x1 x2 !e' in e' := e; y) v1 v2
   in
   (v',!e')
+
+let fold_right2_map f = fold_right2_map_i (fun i -> f)
 
 let fold_left2_map f e v1 v2 =
   let e' = ref e in
@@ -409,6 +418,13 @@ let fold_left2_map_i f e v1 v2 =
   let e' = ref e in
   let v' = map2_i (fun idx x1 x2 -> let (e,y) = f idx !e' x1 x2 in e' := e; y) v1 v2 in
   (!e',v')
+
+let fold_right3_map f v1 v2 v3 e =
+  let e' = ref e in
+  let v' =
+    map3 (fun x1 x2 x3 -> let (y,e) = f x1 x2 x3 !e' in e' := e; y) v1 v2 v3
+  in
+  (v',!e')
 
 let distinct v =
   let visited = Hashtbl.create 23 in
@@ -436,14 +452,14 @@ struct
      The while loop looks for the first such an element.
      If found, we break here and the new array is produced,
      but f is not re-applied to elements that are already checked *)
-  let map f (ar : 'a array) =
+  let mapi f (ar : 'a array) =
     let len = Array.length ar in
     let i = ref 0 in
     let break = ref true in
     let temp = ref None in
     while !break && (!i < len) do
       let v = Array.unsafe_get ar !i in
-      let v' = f v in
+      let v' = f !i v in
       if v == v' then incr i
       else begin
         break := false;
@@ -458,12 +474,14 @@ struct
       incr i;
       while !i < len do
         let v = Array.unsafe_get ans !i in
-        let v' = f v in
+        let v' = f !i v in
         if v != v' then Array.unsafe_set ans !i v';
         incr i
       done;
       ans
     end else ar
+
+  let map f = mapi (fun i -> f)
 
   let map2 f aux_ar ar =
     let len = Array.length ar in
