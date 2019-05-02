@@ -572,13 +572,14 @@ and eqappr cv_pb l2r infos (lft1,st1) (lft2,st2) cuniv =
 	if Int.equal i1 i2 && Array.equal Int.equal op1 op2
 	then
 	  let n = Array.length cl1 in
-          let fty1 = Array.map (mk_clos e1) tys1 in
-          let fty2 = Array.map (mk_clos e2) tys2 in
+          let fty1 = Array.mapi (fun i -> mk_clos (subs_liftn i e1)) tys1 in
+          let fty2 = Array.mapi (fun i -> mk_clos (subs_liftn i e2)) tys2 in
           let fcl1 = Array.map (mk_clos (subs_liftn n e1)) cl1 in
           let fcl2 = Array.map (mk_clos (subs_liftn n e2)) cl2 in
           let el1 = el_stack lft1 v1 in
           let el2 = el_stack lft2 v2 in
-          let cuniv = convert_vect l2r infos el1 el2 fty1 fty2 cuniv in
+          let cuniv = convert_vect_i l2r infos (fun i -> el_liftn i el1)
+                                     (fun i -> el_liftn i el2) fty1 fty2 cuniv in
           let cuniv =
             convert_vect l2r infos
 	      (el_liftn n el1) (el_liftn n el2) fcl1 fcl2 cuniv in
@@ -674,6 +675,19 @@ and convert_branches l2r infos ci e1 e2 lft1 lft2 br1 br2 cuniv =
     ccnv CONV l2r infos lft1 lft2 (mk_clos e1 c1) (mk_clos e2 c2) cuniv
   in
   Array.fold_right3 fold ci.ci_cstr_nargs br1 br2 cuniv
+
+and convert_vect_i l2r infos lft1 lft2 v1 v2 cuniv =
+  let lv1 = Array.length v1 in
+  let lv2 = Array.length v2 in
+  if Int.equal lv1 lv2
+  then
+    let rec fold n cuniv =
+      if n >= lv1 then cuniv
+      else
+        let cuniv = ccnv CONV l2r infos (lft1 n) (lft2 n) v1.(n) v2.(n) cuniv in
+        fold (n+1) cuniv in
+    fold 0 cuniv
+  else raise NotConvertible
 
 let clos_gen_conv trans cv_pb l2r evars env univs t1 t2 =
   let reds = CClosure.RedFlags.red_add_transparent betaiotazeta trans in

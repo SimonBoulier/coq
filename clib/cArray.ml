@@ -54,12 +54,15 @@ sig
     ('a -> 'b -> 'c -> 'd) -> 'a array -> 'b array -> 'c array -> 'd array
   val map3_i :
     (int -> 'a -> 'b -> 'c -> 'd) -> 'a array -> 'b array -> 'c array -> 'd array
+  val map4 :
+    ('a -> 'b -> 'c -> 'd -> 'e) -> 'a array -> 'b array -> 'c array -> 'd array -> 'e array
   val map_left : ('a -> 'b) -> 'a array -> 'b array
   val iter2_i : (int -> 'a -> 'b -> unit) -> 'a array -> 'b array -> unit
   val fold_left_map : ('a -> 'b -> 'a * 'c) -> 'a -> 'b array -> 'a * 'c array
   val fold_right_map : ('a -> 'c -> 'b * 'c) -> 'a array -> 'c -> 'b array * 'c
   val fold_left2_map : ('a -> 'b -> 'c -> 'a * 'd) -> 'a -> 'b array -> 'c array -> 'a * 'd array
   val fold_left2_map_i : (int -> 'a -> 'b -> 'c -> 'a * 'd) -> 'a -> 'b array -> 'c array -> 'a * 'd array
+  val fold_left4_map : ('a -> 'b -> 'c -> 'd -> 'e -> 'a * 'f) -> 'a -> 'b array -> 'c array-> 'd array-> 'e array -> 'a * 'f array
   val fold_right2_map : ('a -> 'b -> 'c -> 'd * 'c) -> 'a array -> 'b array -> 'c -> 'd array * 'c
   val fold_right2_map_i : (int -> 'a -> 'b -> 'c -> 'd * 'c) -> 'a array -> 'b array -> 'c -> 'd array * 'c
   val fold_right3_map : ('a -> 'b -> 'c -> 'd -> 'e * 'd) -> 'a array -> 'b array -> 'c array -> 'd -> 'e array * 'd
@@ -351,7 +354,7 @@ let map3_i f v1 v2 v3 =
   let len1 = Array.length v1 in
   let () =
     if len1 <> Array.length v2 || len1 <> Array.length v3
-    then invalid_arg "Array.map3"
+    then invalid_arg "Array.map3_i"
   in
   if Int.equal len1 0 then
     [| |]
@@ -364,6 +367,22 @@ let map3_i f v1 v2 v3 =
   end
 
 let map3 f = map3_i (fun i -> f)
+
+let map4 f v1 v2 v3 v4 =
+  let len1 = Array.length v1 in
+  let () =
+    if len1 <> Array.length v2 || len1 <> Array.length v3 || len1 <> Array.length v4
+    then invalid_arg "Array.map4"
+  in
+  if Int.equal len1 0 then
+    [| |]
+  else begin
+    let res = Array.make len1 (f (uget v1 0) (uget v2 0) (uget v3 0) (uget v4 0)) in
+    for i = 1 to pred len1 do
+      Array.unsafe_set res i (f (uget v1 i) (uget v2 i) (uget v3 i) (uget v4 i))
+    done;
+    res
+  end
 
 let map_left f a = (* Ocaml does not guarantee Array.map is LR *)
   let l = Array.length a in (* (even if so), then we rewrite it *)
@@ -417,6 +436,11 @@ let fold_left2_map f e v1 v2 =
 let fold_left2_map_i f e v1 v2 =
   let e' = ref e in
   let v' = map2_i (fun idx x1 x2 -> let (e,y) = f idx !e' x1 x2 in e' := e; y) v1 v2 in
+  (!e',v')
+
+let fold_left4_map  f e v1 v2 v3 v4 =
+  let e' = ref e in
+  let v' = map4 (fun x1 x2 x3 x4 -> let (e,y) = f !e' x1 x2 x3 x4 in e' := e; y) v1 v2 v3 v4 in
   (!e',v')
 
 let fold_right3_map f v1 v2 v3 e =

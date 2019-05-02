@@ -110,6 +110,7 @@ val nb_rel           : env -> int
 val push_rel         : Constr.rel_declaration -> env -> env
 val push_rel_context : Constr.rel_context -> env -> env
 val push_rec_types   : rec_declaration -> env -> env
+val push_corec_types : rec_declaration -> env -> env
 
 (** Looks up in the context of local vars referred by indice ([rel_context]) 
    raises [Not_found] if the index points out of the context *)
@@ -240,7 +241,7 @@ val get_projections : env -> inductive -> Names.Projection.Repr.t array option
 (** {5 Inductive types } *)
 val lookup_mind_key : MutInd.t -> env -> mind_key
 val add_mind_key : MutInd.t -> mind_key -> env -> env
-val add_mind : MutInd.t -> mutual_inductive_body -> env -> env
+val add_mind : MutInd.t -> mutual_inductive_body -> (Names.Constant.t * constant_body) list -> env -> env
 
 (** Looks up in the context of global inductive names 
    raises [Not_found] if the required path is not found *)

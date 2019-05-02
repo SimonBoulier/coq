@@ -30,7 +30,14 @@ open Entries
      I1..Ip:(B1 y1..yq)..(Bp y1..yq) |- ci : (y1..yq:C1..Cq)Ti[Ij:=(Ij y1..yq)]
 *)
 
-let abstract_inductive decls nparamdecls inds =
+let abstract_constructors mind i lc =
+  let rec aux k c =
+    match kind_of_term c with
+    | Construct ((ind, i), u) when eq_mind mind (fst ind) -> mkRel (succ k + i)
+    | _ -> map_constr_with_binders succ aux k c
+  in aux 0 lc
+
+let abstract_inductive mind decls nparamdecls inds =
   let ntyp = List.length inds in
   let ndecls = Context.Named.length decls in
   let args = Context.Named.to_instance mkVar (List.rev decls) in
@@ -60,7 +67,9 @@ let abstract_inductive decls nparamdecls inds =
 	mind_entry_arity = short_arity;
 	mind_entry_template = template;
 	mind_entry_consnames = c;
-	mind_entry_lc = shortlc })
+        mind_entry_lc =
+          (* MS FIXME: Discharging of ind-ind defs is broken*)
+          List.mapi (fun i -> lift i) shortlc })
     inds'
   in (params',ind'')
 
@@ -71,7 +80,7 @@ let refresh_polymorphic_type_of_inductive (_,mip) =
     let ctx = List.rev mip.mind_arity_ctxt in
       mkArity (List.rev ctx, Type ar.template_level), true
 
-let process_inductive info modlist mib =
+let process_inductive info modlist mind mib =
   let section_decls = Lib.named_of_variable_context info.Lib.abstr_ctx in
   let nparamdecls = Context.Rel.length mib.mind_params_ctxt in
   let subst, ind_univs =
@@ -100,7 +109,7 @@ let process_inductive info modlist mib =
 	   Array.to_list lc))
       mib.mind_packets in
   let section_decls' = Context.Named.map discharge section_decls in
-  let (params',inds') = abstract_inductive section_decls' nparamdecls inds in
+  let (params',inds') = abstract_inductive mind section_decls' nparamdecls inds in
   let record = match mib.mind_record with
     | PrimRecord info ->
       Some (Some (Array.map pi1 info))

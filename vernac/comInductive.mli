@@ -25,7 +25,8 @@ type uniform_inductive_flag =
 
 val do_mutual_inductive :
   template:bool option -> universe_decl_expr option ->
-  (one_inductive_expr * decl_notation list) list -> cumulative_inductive_flag ->
+  (one_inductive_expr * decl_notation list) list ->
+  (fixpoint_expr * decl_notation list) list -> cumulative_inductive_flag ->
   polymorphic -> private_flag -> uniform:uniform_inductive_flag ->
   Declarations.recursivity_kind -> unit
 
@@ -44,6 +45,7 @@ type one_inductive_impls =
 
 val declare_mutual_inductive_with_eliminations :
   mutual_inductive_entry -> UnivNames.universe_binders -> one_inductive_impls list ->
+  (Names.Constant.t * Safe_typing.private_constants Entries.constant_entry) list ->
   MutInd.t
 
 val should_auto_template : Id.t -> bool -> bool
@@ -62,6 +64,15 @@ type structured_one_inductive_expr = {
   ind_lc : (Id.t * constr_expr) list
 }
 
+type structured_fixpoint_expr = {
+  fix_name : Id.t;
+  fix_univs : lident list option;
+  fix_annot : Id.t Loc.located option;
+  fix_binders : local_binder_expr list;
+  fix_body : constr_expr option;
+  fix_type : constr_expr
+}
+
 type structured_inductive_expr =
   local_binder_expr list * structured_one_inductive_expr list
 
@@ -73,6 +84,7 @@ val extract_mutual_inductive_declaration_components :
 
 val interp_mutual_inductive :
   template:bool option -> universe_decl_expr option -> structured_inductive_expr ->
-  decl_notation list -> cumulative_inductive_flag ->
+  structured_fixpoint_expr list -> decl_notation list -> cumulative_inductive_flag ->
   polymorphic -> private_flag -> Declarations.recursivity_kind ->
-  mutual_inductive_entry * UnivNames.universe_binders * one_inductive_impls list
+  mutual_inductive_entry * UnivNames.universe_binders * one_inductive_impls list *
+  (Names.Constant.t * Safe_typing.private_constants Entries.constant_entry) list

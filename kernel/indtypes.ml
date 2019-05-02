@@ -333,7 +333,8 @@ let check_positivity_one ~chkpos recursive (env,_,ntypes,_ as ienv) paramsctxt (
                 check_constr_rec ienv' nmr' (recarg::lrec) d
           | hd ->
             let () =
-              if check_head then
+              if is_positivity_check () then
+                if check_head then
                 begin match hd with
                 | Rel j when Int.equal j (n + ntypes - i - 1) ->
                   check_correct_par ienv paramsctxt (ntypes - i) largs
@@ -347,15 +348,18 @@ let check_positivity_one ~chkpos recursive (env,_,ntypes,_ as ienv) paramsctxt (
             (nmr, List.rev lrec)
     in check_constr_rec ienv nmr [] c
   in
-  let irecargs_nmr =
-    Array.map2
-      (fun id c ->
-        let _,rawc = mind_extract_params nparamsctxt c in
+  let irecargs_nmr, ienv' =
+    Array.fold_map2'
+      (fun id c ienv ->
+        let res =
           try
-	    check_constructors ienv true nmr rawc
+            check_constructors ienv true nmr c
           with IllFormedInd err ->
-	    explain_ind_err id (ntypes-i) env nparamsctxt c err)
-      (Array.of_list lcnames) indlc
+            explain_ind_err id (ntypes-i) env nparamsctxt c err
+        in
+        let ienv = ienv_push_var ienv (Name id, c, mk_norec) in
+        (res, ienv))
+      (Array.of_list lcnames) indlc ienv
   in
   let irecargs = Array.map snd irecargs_nmr
   and nmr' = array_min nmr irecargs_nmr
@@ -367,16 +371,16 @@ let check_positivity_one ~chkpos recursive (env,_,ntypes,_ as ienv) paramsctxt (
     If [chkpos] is [false] then positivity is assumed, and
     [check_positivity_one] computes the subterms occurrences in a
     best-effort fashion. *)
-let check_positivity ~chkpos kn names env_ar_par paramsctxt finite inds =
+let check_positivity ~chkpos kn names env_ar_par nfix paramsctxt finite inds =
   let ntypes = Array.length inds in
   let recursive = finite != BiFinite in
   let rc = Array.mapi (fun j t -> (Mrec (kn,j),t)) (Rtree.mk_rec_calls ntypes) in
   let ra_env_ar = Array.rev_to_list rc in
   let nparamsctxt = Context.Rel.length paramsctxt in
   let nmr = Context.Rel.nhyps paramsctxt in
-  let check_one i (_,lcnames) (nindices,lc) =
+  let check_one i (acc, nconstr) (_,lcnames) (nindices,lc) =
     let ra_env_ar_par =
-      List.init nparamsctxt (fun _ -> (Norec,mk_norec)) @ ra_env_ar in
+      List.init (nparamsctxt + nfix + nconstr) (fun _ -> (Norec,mk_norec)) @ ra_env_ar in
     let ienv = (env_ar_par, 1+nparamsctxt, ntypes, ra_env_ar_par) in
     check_positivity_one ~chkpos recursive ienv paramsctxt (kn,i) nindices lcnames lc
   in
@@ -496,7 +500,7 @@ let build_inductive env names prv univs variance paramsctxt kn isrecord isfinite
 		 les tag des constructeur non constant a 1 (0 => accumulator) *)
     in
     let rtbl = Array.init (List.length cnames) transf in
-      (* Build the inductive packet *)
+    let pack = (* Build the inductive packet *)
       { mind_typename = id;
         mind_arity = arity;
         mind_arity_ctxt = indices @ paramsctxt;
@@ -555,10 +559,94 @@ let build_inductive env names prv univs variance paramsctxt kn isrecord isfinite
   in
   { mib with mind_record = record_info }
 
+let map_const_entry_body (f:Term.constr->Term.constr) (x: 'a Entries.const_entry_body)
+    : 'a Entries.const_entry_body =
+  Future.chain ~pure:true x begin fun ((b,ctx),fx) ->
+    (f b , ctx) , fx
+  end
+
+let type_kind_of_constant_entry centry = match centry with
+  | DefinitionEntry dentry ->
+     begin
+       match dentry.const_entry_type with
+       | Some typ -> typ, true
+       | None -> anomaly (Pp.str "bli.")
+     end
+  | ParameterEntry (_, _, (typ, _), _) -> typ, false
+  | ProjectionEntry _ -> anomaly (Pp.str "Blah.")
+
+type 'a is_fix = IsFix of fixpoint * 'a definition_entry
+              | IsParam of parameter_entry
+
+let typecheck_fixl env kn mbs fixl =
+  let subst = Inductive.ind_subst kn mbs Univ.Instance.empty in
+  let fixenv = Environ.add_mind kn mbs [] env in
+  let open Context.Named.Declaration in
+  let subst_entry ce =
+    match ce with
+    | ParameterEntry (sec,b,(typ,u),inl) ->
+       ParameterEntry (sec,b,(substl subst typ,u),inl)
+    | DefinitionEntry cste ->
+       DefinitionEntry { cste with
+                         const_entry_body =
+                           map_const_entry_body (substl subst) cste.const_entry_body;
+                         const_entry_type =
+                           Option.map (substl subst) cste.const_entry_type }
+    | ProjectionEntry _ -> assert false
+  in
+  let fixl = List.rev_map (fun (l, ce) -> l, subst_entry ce) fixl in
+  let fixenv, fixl =
+    List.fold_left
+      (fun (env,acc) (l,f) ->
+        match f with
+        | DefinitionEntry dentry ->
+           begin
+             match dentry.const_entry_type with
+             | Some typ ->
+                let ((value,ctx),e) = Future.force dentry.const_entry_body in
+                let (idxs, (names, tys, defs)) = destFix value in
+                let decls =
+                  Array.map3
+                    (fun n ty (l, _) -> Context.Rel.Declaration.LocalDef (n, mkConst l, ty))
+                    names tys (Array.of_list fixl) in
+                let b' = defs.(snd idxs) in
+                let f' = { dentry with const_entry_body = Future.from_val ((b',ctx),e) } in
+                (Environ.push_rel_context (Array.to_list decls) env,
+                (l, IsFix ((idxs, (names, tys, defs)), f')) :: acc)
+             | None -> anomaly (Pp.str "bli.")
+           end
+        | ParameterEntry ((_, _, (ty, _), _) as param) ->
+           let label = Label.to_id (Constant.label l) in
+           let decl = LocalAssum (label, ty) in
+           (Environ.push_named decl env, (l,IsParam param) :: acc)
+        | ProjectionEntry _ -> anomaly (Pp.str "Blah."))
+      (fixenv, []) fixl
+  in
+  let tr_one (l,ce) =
+    match ce with
+    | IsParam ce ->
+       (l, Term_typing.translate_constant [] fixenv l (ParameterEntry ce))
+    | IsFix ((idxs, (names, tys, defs)),ce) ->
+       let cb = Term_typing.translate_constant [] fixenv l (DefinitionEntry ce) in
+       let body' = match cb.const_body with
+         | Def c ->
+            let c' = Mod_subst.force_constr c in
+            let () = defs.(snd idxs) <- c' in
+            let c' = mkFix (idxs, (names, tys, defs)) in
+            Def (Mod_subst.from_val c')
+         | _ -> assert false
+       in
+       let cb' = { cb with const_body = body' } in
+       (l, cb')
+  in
+    List.rev_map tr_one fixl
+
 (************************************************************************)
 (************************************************************************)
 
-let check_inductive env kn mie =
+(* Insertion of inductive types. *)
+
+let translate_mind env kn mie fixl =
   (* First type-check the inductive definition *)
   let (env_ar_par, univs, variance, paramsctxt, inds) = IndTyping.typecheck_inductive env mie in
   (* Then check positivity conditions *)

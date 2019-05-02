@@ -112,6 +112,7 @@ val add_constant :
 
 val add_mind :
   Label.t -> Entries.mutual_inductive_entry ->
+  (Names.Constant.t * private_constants Entries.constant_entry) list ->
     MutInd.t safe_transformer
 
 (** Adding a module or a module type *)

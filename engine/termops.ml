@@ -577,7 +577,15 @@ let adjust_app_array_size f1 l1 f2 l2 =
    time being almost those of the ML representation (except for
    (co-)fixpoint) *)
 
-let fold_rec_types g (lna,typarray,_) e =
+let fold_rec_types g (lna,typarray,_) f e =
+  let open EConstr in
+  let open Vars in
+  Array.fold_map2' (fun na t e ->
+    let t' = f e t in
+    let decl = RelDecl.LocalAssum (na, t') in
+    t', g decl e) lna typarray e
+
+let fold_corec_types g (lna,typarray,_) e =
   let open EConstr in
   let open Vars in
   let ctxt = Array.map2_i (fun i na t -> RelDecl.LocalAssum (na, lift i t)) lna typarray in
@@ -647,13 +655,13 @@ let map_constr_with_binders_left_to_right sigma g f l c =
 	if b' == b && p' == p && bl' == bl then c
 	else mkCase (ci, p', b', bl')
   | Fix (ln,(lna,tl,bl as fx)) ->
-      let l' = fold_rec_types g fx l in
-      let (tl', bl') = map_left2 (f l) tl (f l') bl in
+      let tl', l' = fold_rec_types g fx f l in
+      let bl' = Array.map_left (f l') bl in
 	if Array.for_all2 (==) tl tl' && Array.for_all2 (==) bl bl'
 	then c
 	else mkFix (ln,(lna,tl',bl'))
   | CoFix(ln,(lna,tl,bl as fx)) ->
-      let l' = fold_rec_types g fx l in
+      let l' = fold_corec_types g fx l in
       let (tl', bl') = map_left2 (f l) tl (f l') bl in
 	if Array.for_all2 (==) tl tl' && Array.for_all2 (==) bl bl'
 	then c
@@ -721,9 +729,11 @@ let map_constr_with_full_binders_gen userview sigma g f l cstr =
       let bl' = Array.map (f l) bl in
       if p==p' && c==c' && Array.for_all2 (==) bl bl' then cstr else
         mkCase (ci, p', c', bl')
-  | Fix (ln,(lna,tl,bl as fx)) ->
-      let tl' = Array.map (f l) tl in
-      let l' = fold_rec_types g fx l in
+  | Fix (ln,(lna,tl,bl)) ->
+      let tl',l' = Array.fold_map2' (fun na t l ->
+                       let t' = f l t in
+                       let decl = LocalAssum (na, t') in
+                       t', g decl l) lna tl l in
       let bl' = Array.map (f l') bl in
       if Array.for_all2 (==) tl tl' && Array.for_all2 (==) bl bl'
       then cstr

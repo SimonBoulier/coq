@@ -268,7 +268,7 @@ let declare_inductive_argument_scopes kn mie =
       Notation.declare_ref_arguments_scope Evd.empty (ConstructRef ((kn,i),j));
     done) mie.mind_entry_inds
 
-let inductive_names sp kn mie =
+let inductive_names sp kn mie fixl =
   let (dp,_) = repr_path sp in
   let kn = Global.mind_of_delta_kn kn in
   let names, _ =
@@ -287,32 +287,38 @@ let inductive_names sp kn mie =
 	 in
 	   ((sp, IndRef ind_p) :: names, n+1))
       ([], 0) mie.mind_entry_inds
+  in
+  let names =
+    List.fold_left
+      (fun names (c, _) ->
+        let sp = Libnames.make_path dp (Label.to_id (Constant.label c)) in
+        (sp, ConstRef c) :: names) names fixl
   in names
 
-let load_inductive i ((sp,kn),mie) =
-  let names = inductive_names sp kn mie in
+let load_inductive i ((sp,kn),mie,fixl) =
+  let names = inductive_names sp kn mie fixl in
   List.iter (fun (sp, ref) -> Nametab.push (Nametab.Until i) sp ref ) names
 
-let open_inductive i ((sp,kn),mie) =
-  let names = inductive_names sp kn mie in
+let open_inductive i ((sp,kn),mie,fixl) =
+  let names = inductive_names sp kn mie fixl in
   List.iter (fun (sp, ref) -> Nametab.push (Nametab.Exactly i) sp ref) names
 
-let cache_inductive ((sp,kn),mie) =
-  let names = inductive_names sp kn mie in
+let cache_inductive ((sp,kn),mie,fixl) =
+  let names = inductive_names sp kn mie fixl in
   List.iter check_exists (List.map fst names);
   let id = basename sp in
-  let kn' = Global.add_mind id mie in
+  let kn' = Global.add_mind id mie fixl in
   assert (MutInd.equal kn' (MutInd.make1 kn));
   let mind = Global.lookup_mind kn' in
   add_section_kn (Declareops.inductive_is_polymorphic mind) kn' mind.mind_hyps;
   List.iter (fun (sp, ref) -> Nametab.push (Nametab.Until 1) sp ref) names
 
-let discharge_inductive ((sp,kn),mie) =
+let discharge_inductive ((sp,kn),mie,fixl) =
   let mind = Global.mind_of_delta_kn kn in
   let mie = Global.lookup_mind mind in
   let repl = replacement_context () in
   let info = section_segment_of_mutual_inductive mind in
-  Some (Discharge.process_inductive info repl mie)
+  Some (Discharge.process_inductive info repl mie, fixl)
 
 let dummy_one_inductive_entry mie = {
   mind_entry_typename = mie.mind_entry_typename;
@@ -323,7 +329,7 @@ let dummy_one_inductive_entry mie = {
 }
 
 (* Hack to reduce the size of .vo: we keep only what load/open needs *)
-let dummy_inductive_entry m = {
+let dummy_inductive_entry m = ({
   mind_entry_params = [];
   mind_entry_record = None;
   mind_entry_finite = Declarations.BiFinite;
@@ -331,7 +337,7 @@ let dummy_inductive_entry m = {
   mind_entry_universes = default_univ_entry;
   mind_entry_variance = None;
   mind_entry_private = None;
-}
+},[])
 
 (* reinfer subtyping constraints for inductive after section is dischared. *)
 let rebuild_inductive mind_ent =
@@ -381,11 +387,11 @@ let declare_projections univs mind =
   | NotRecord -> false
 
 (* for initial declaration *)
-let declare_mind mie =
+let declare_mind (mie, fixl) =
   let id = match mie.mind_entry_inds with
     | ind::_ -> ind.mind_entry_typename
     | [] -> anomaly (Pp.str "cannot declare an empty list of inductives.") in
-  let (sp,kn as oname) = add_leaf id (inInductive mie) in
+  let (sp,kn as oname) = add_leaf id (inInductive (mie, fixl)) in
   let mind = Global.mind_of_delta_kn kn in
   let isprim = declare_projections mie.mind_entry_universes mind in
   declare_mib_implicits mind;

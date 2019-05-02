@@ -15,7 +15,9 @@ open Environ
 open Entries
 
 (** Check an inductive. *)
-val check_inductive : env -> MutInd.t -> mutual_inductive_entry -> mutual_inductive_body
+val translate_inductive : env -> MutInd.t -> mutual_inductive_entry ->
+                          (Constant.t * _ (* todo *) constant_entry) list ->
+                          mutual_inductive_body * (Names.Constant.t * constant_body) list
 
 (** Deprecated *)
 type inductive_error =

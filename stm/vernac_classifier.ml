@@ -134,14 +134,16 @@ let classify_vernac e =
     | VernacPrimitive (id,_,_) ->
         VtSideff [id.CAst.v], VtLater
     | VernacDefinition (_,({v=id},_),DefineBody _) -> VtSideff (idents_of_name id), VtLater
-    | VernacInductive (_, _,_,l) ->
+    | VernacInductive (_, _,_,l,l') ->
         let ids = List.map (fun (((_,({v=id},_)),_,_,_,cl),_) -> id :: match cl with
         | Constructors l -> List.map (fun (_,({v=id},_)) -> id) l
         | RecordDecl (oid,l) -> (match oid with Some {v=x} -> [x] | _ -> []) @
            CList.map_filter (function
             | ((_,AssumExpr({v=Names.Name n},_)),_),_ -> Some n
             | _ -> None) l) l in
-        VtSideff (List.flatten ids), VtLater
+        let ids' =
+          List.fold_left (fun l ((((_,id),_),_,_,_,p),_) -> id::l) [] l' in
+        VtSideff (ids' @ List.flatten ids), VtLater
     | VernacScheme l ->
         let ids = List.map (fun {v}->v) (CList.map_filter (fun (x,_) -> x) l) in
         VtSideff ids, VtLater

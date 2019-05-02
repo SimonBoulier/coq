@@ -80,6 +80,15 @@ type structured_one_inductive_expr = {
   ind_lc : (Id.t * constr_expr) list
 }
 
+type structured_fixpoint_expr = {
+  fix_name : Id.t;
+  fix_univs : lident list option;
+  fix_annot : Id.t Loc.located option;
+  fix_binders : local_binder_expr list;
+  fix_body : constr_expr option;
+  fix_type : constr_expr
+}
+
 type structured_inductive_expr =
   local_binder_expr list * structured_one_inductive_expr list
 
@@ -351,7 +360,7 @@ let restrict_inductive_universes sigma ctx_params arities constructors =
   let uvars = List.fold_right (fun (_,ctypes,_) -> List.fold_right merge_universes_of_constr ctypes) constructors uvars in
   Evd.restrict_universe_context sigma uvars
 
-let interp_mutual_inductive_gen env0 ~template udecl (uparamsl,paramsl,indl) notations cum poly prv finite =
+let interp_mutual_inductive_gen env0 ~template udecl (uparamsl,paramsl,indl) (fixl :structured_fixpoint_expr list) notations cum poly prv finite =
   check_all_names_different indl;
   List.iter check_param paramsl;
   if not (List.is_empty uparamsl) && not (List.is_empty notations)
@@ -471,10 +480,10 @@ let interp_mutual_inductive_gen env0 ~template udecl (uparamsl,paramsl,indl) not
   in
   (if poly && cum then
       InferCumulativity.infer_inductive env_ar mind_ent
-   else mind_ent), Evd.universe_binders sigma, impls
+   else mind_ent), Evd.universe_binders sigma, impls, [] (* todo *)
 
-let interp_mutual_inductive ~template udecl (paramsl,indl) notations cum poly prv finite =
-  interp_mutual_inductive_gen (Global.env()) ~template udecl ([],paramsl,indl) notations cum poly prv finite
+let interp_mutual_inductive ~template udecl (paramsl,indl) fixl notations cum poly prv finite =
+  interp_mutual_inductive_gen (Global.env()) ~template udecl ([],paramsl,indl) fixl notations cum poly prv finite
 
 (* Very syntactical equality *)
 let eq_local_binders bl1 bl2 =
@@ -529,7 +538,7 @@ let warn_non_primitive_record =
           (hov 0 (str "The record " ++ Nametab.pr_global_env Id.Set.empty (IndRef indsp) ++
                     strbrk" could not be defined as a primitive record")))
 
-let declare_mutual_inductive_with_eliminations mie pl impls =
+let declare_mutual_inductive_with_eliminations mie pl impls fixl =
   (* spiwack: raises an error if the structure is supposed to be non-recursive,
         but isn't *)
   begin match mie.mind_entry_finite with
@@ -541,7 +550,7 @@ let declare_mutual_inductive_with_eliminations mie pl impls =
   | _ -> ()
   end;
   let names = List.map (fun e -> e.mind_entry_typename) mie.mind_entry_inds in
-  let (_, kn), prim = declare_mind mie in
+  let (_, kn), prim = declare_mind (mie, [] (* todo *)) in
   let mind = Global.mind_of_delta_kn kn in
   if match mie.mind_entry_record with Some (Some _) -> not prim | _ -> false
   then warn_non_primitive_record (mind,0);
@@ -569,13 +578,14 @@ type uniform_inductive_flag =
   | UniformParameters
   | NonUniformParameters
 
-let do_mutual_inductive ~template udecl indl cum poly prv ~uniform finite =
+let do_mutual_inductive ~template udecl indl fixl cum poly prv ~uniform finite =
   let (params,indl),coes,ntns = extract_mutual_inductive_declaration_components indl in
   (* Interpret the types *)
   let indl = match uniform with UniformParameters -> (params, [], indl) | NonUniformParameters -> ([], params, indl) in
-  let mie,pl,impls = interp_mutual_inductive_gen (Global.env()) ~template udecl indl ntns cum poly prv finite in
+  let fixl = [] in (* todo *)
+  let mie,pl,impls,fixl = interp_mutual_inductive_gen (Global.env()) ~template udecl indl fixl ntns cum poly prv finite in
   (* Declare the mutual inductive block with its associated schemes *)
-  ignore (declare_mutual_inductive_with_eliminations mie pl impls);
+  ignore (declare_mutual_inductive_with_eliminations mie pl impls fixl);
   (* Declare the possible notations of inductive types *)
   List.iter (Metasyntax.add_notation_interpretation (Global.env ())) ntns;
   (* Declare the coercions *)

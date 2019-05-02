@@ -45,7 +45,9 @@ val export_private_constants : in_section:bool ->
 val add_constant :
   in_section:bool -> Id.t -> Safe_typing.global_declaration -> Constant.t
 val add_mind :
-  Id.t -> Entries.mutual_inductive_entry -> MutInd.t
+  Id.t -> Entries.mutual_inductive_entry ->
+  (Names.Constant.t * Safe_typing.private_constants Entries.constant_entry) list ->
+  MutInd.t
 
 (** Extra universe constraints *)
 val add_constraints : Univ.Constraint.t -> unit

@@ -676,7 +676,7 @@ let extract_inductive_udecl (indl:(inductive_expr * decl_notation list) list) =
     then the type is declared private (as per the [Private] keyword). [finite]
     indicates whether the type is inductive, co-inductive or
     neither. *)
-let vernac_inductive ~atts cum lo finite indl =
+let vernac_inductive ~atts cum lo finite indl fixl =
   let template, poly = Attributes.(parse Notations.(template ++ polymorphic) atts) in
   let open Pp in
   let udecl, indl = extract_inductive_udecl indl in
@@ -757,7 +757,7 @@ let vernac_inductive ~atts cum lo finite indl =
     let indl = List.map unpack indl in
     let is_cumulative = should_treat_as_cumulative cum poly in
     let uniform = should_treat_as_uniform () in
-    ComInductive.do_mutual_inductive ~template udecl indl is_cumulative poly lo ~uniform finite
+    ComInductive.do_mutual_inductive ~template udecl indl fixl is_cumulative poly lo ~uniform finite
   else
     user_err (str "Mixed record-inductive definitions are not allowed")
 (*
@@ -2223,7 +2223,7 @@ let interp ?proof ~atts ~st c =
   | VernacExactProof c -> unsupported_attributes atts; vernac_exact_proof c
   | VernacAssumption ((discharge,kind),nl,l) ->
       with_def_attributes vernac_assumption ~atts discharge kind l nl
-  | VernacInductive (cum, priv, finite, l) -> vernac_inductive ~atts cum priv finite l
+  | VernacInductive (cum, priv, finite, l, l') -> vernac_inductive ~atts cum priv finite l l'
   | VernacFixpoint (discharge, l) -> with_def_attributes vernac_fixpoint ~atts discharge l
   | VernacCoFixpoint (discharge, l) -> with_def_attributes vernac_cofixpoint ~atts discharge l
   | VernacScheme l -> unsupported_attributes atts; vernac_scheme l

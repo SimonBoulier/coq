@@ -553,8 +553,8 @@ let detype_fix detype avoid env sigma (vn,_ as nvn) (names,tys,bodies) =
          (Id.Set.add id avoid, add_name (Name id) None ty env, id::l))
       (avoid, env, []) names tys in
   let n = Array.length tys in
-  let v = Array.map3
-    (fun c t i -> share_names detype (i+1) [] def_avoid def_env sigma c (lift n t))
+  let v = Array.map3_i
+    (fun j c t i -> share_names detype (i+1) [] def_avoid def_env sigma c (lift (n-j) t))
     bodies tys vn in
   GRec(GFix (Array.map (fun i -> Some i, GStructRec) (fst nvn), snd nvn),Array.of_list (List.rev lfi),
        Array.map (fun (bl,_,_) -> bl) v,

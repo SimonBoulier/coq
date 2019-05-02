@@ -501,7 +501,7 @@ let ref_value_cache ({ i_cache = cache; _ }) tab ref =
     KeyTable.add tab ref v; v
 
 (* The inverse of mk_clos: move back to constr *)
-let rec to_constr lfts v =
+let rec to_constr (lfts : lift) v =
   match v.term with
     | FRel i -> mkRel (reloc_rel i lfts)
     | FFlex (RelKey p) -> mkRel (reloc_rel p lfts)
@@ -523,9 +523,9 @@ let rec to_constr lfts v =
         mkFix fx
       else
         let n = Array.length bds in
-        let subs_ty = comp_subs lfts e in
+        let subst_ty = fun i -> comp_subs (el_liftn i lfts) (subs_liftn i e) in
         let subs_bd = comp_subs (el_liftn n lfts) (subs_liftn n e) in
-        let tys = Array.Fun1.map subst_constr subs_ty tys in
+        let tys = Array.mapi (fun i -> subst_constr (subst_ty i)) tys in  (* Sim:was there a bug here? *)
         let bds = Array.Fun1.map subst_constr subs_bd bds in
         mkFix (op, (lna, tys, bds))
     | FCoFix ((op,(lna,tys,bds)) as cfx, e) ->
@@ -1211,7 +1211,7 @@ and norm_head info tab m =
             Array.Fun1.map mk_clos (subs_liftn (Array.length na) e) bds in
           mkCoFix(n,(na, CArray.map (kl info tab) ftys, CArray.map (kl info tab) fbds))
       | FFix((n,(na,tys,bds)),e) ->
-          let ftys = Array.Fun1.map mk_clos e tys in
+          let ftys = Array.mapi (fun i -> mk_clos (subs_liftn i e)) tys in
           let fbds =
             Array.Fun1.map mk_clos (subs_liftn (Array.length na) e) bds in
           mkFix(n,(na, CArray.map (kl info tab) ftys, CArray.map (kl info tab) fbds))

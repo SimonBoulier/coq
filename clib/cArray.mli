@@ -85,6 +85,8 @@ sig
     ('a -> 'b -> 'c -> 'd) -> 'a array -> 'b array -> 'c array -> 'd array
   val map3_i :
     (int -> 'a -> 'b -> 'c -> 'd) -> 'a array -> 'b array -> 'c array -> 'd array
+  val map4 :
+    ('a -> 'b -> 'c -> 'd -> 'e) -> 'a array -> 'b array -> 'c array -> 'd array -> 'e array
 
   val map_left : ('a -> 'b) -> 'a array -> 'b array
   (** As [map] but guaranteed to be left-to-right. *)
@@ -105,6 +107,8 @@ sig
   val fold_left2_map_i :
     (int -> 'a -> 'b -> 'c -> 'a * 'd) -> 'a -> 'b array -> 'c array -> 'a * 'd array
   (** Same than [fold_left2_map] but passing the index of the array *)
+
+  val fold_left4_map : ('a -> 'b -> 'c -> 'd -> 'e -> 'a * 'f) -> 'a -> 'b array -> 'c array-> 'd array-> 'e array -> 'a * 'f array
 
   val fold_right2_map : ('a -> 'b -> 'c -> 'd * 'c) -> 'a array -> 'b array -> 'c -> 'd array * 'c
   (** Same with two arrays, folding on the right *)

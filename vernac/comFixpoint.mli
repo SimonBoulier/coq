@@ -13,6 +13,7 @@ open Constr
 open Decl_kinds
 open Constrexpr
 open Vernacexpr
+open ComInductive
 
 (** {6 Fixpoints and cofixpoints} *)
 
@@ -29,15 +30,6 @@ val do_cofixpoint :
 (************************************************************************)
 (** Internal API  *)
 (************************************************************************)
-
-type structured_fixpoint_expr = {
-  fix_name : Id.t;
-  fix_univs : Constrexpr.universe_decl_expr option;
-  fix_annot : lident option;
-  fix_binders : local_binder_expr list;
-  fix_body : constr_expr option;
-  fix_type : constr_expr
-}
 
 (** Typing global fixpoints and cofixpoint_expr *)
 

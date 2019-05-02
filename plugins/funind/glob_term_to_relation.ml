@@ -1493,7 +1493,7 @@ let do_build_inductive
   let _time2 = System.get_time () in
   try
     with_full_print
-      (Flags.silently (ComInductive.do_mutual_inductive ~template:(Some false) None rel_inds false false false ~uniform:ComInductive.NonUniformParameters))
+      (Flags.silently (ComInductive.do_mutual_inductive ~template:(Some false) None rel_inds [] false false false ~uniform:ComInductive.NonUniformParameters))
       Declarations.Finite
   with
     | UserError(s,msg) as e ->
@@ -1505,7 +1505,7 @@ let do_build_inductive
 	in
 	let msg =
 	  str "while trying to define"++ spc () ++
-            Ppvernac.pr_vernac Vernacexpr.(VernacExpr([], VernacInductive(None,false,Declarations.Finite,repacked_rel_inds)))
+            Ppvernac.pr_vernac Vernacexpr.(VernacExpr([], VernacInductive(None,false,Declarations.Finite,repacked_rel_inds,[])))
 	    ++ fnl () ++
 	    msg
 	in
@@ -1520,7 +1520,7 @@ let do_build_inductive
 	in
 	let msg =
 	  str "while trying to define"++ spc () ++
-            Ppvernac.pr_vernac Vernacexpr.(VernacExpr([], VernacInductive(None,false,Declarations.Finite,repacked_rel_inds)))
+            Ppvernac.pr_vernac Vernacexpr.(VernacExpr([], VernacInductive(None,false,Declarations.Finite,repacked_rel_inds,[])))
 	    ++ fnl () ++
 	    CErrors.print reraise
 	in

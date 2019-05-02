@@ -908,6 +908,8 @@ and extract_case env sg mle ((kn,i) as ip,c,br) mlt =
 (*s Extraction of a (co)-fixpoint. *)
 
 and extract_fix env sg mle i (fi,ti,ci as recd) mlt =
+  (* MS: FIXME, for ind-ind, fixpoints can depend on each other,
+     push_rec_types different from push_corec_types *)
   let env = push_rec_types recd env in
   let metas = Array.map new_meta fi in
   metas.(i) <- mlt;

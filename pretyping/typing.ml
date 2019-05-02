@@ -187,7 +187,7 @@ let check_type_fixpoint ?loc env sigma lna lar vdefj =
   let lt = Array.length vdefj in
   assert (Int.equal (Array.length lar) lt);
   Array.fold_left2_i (fun i sigma defj ar ->
-      match Evarconv.cumul env sigma defj.uj_type (lift lt ar) with
+      match Evarconv.cumul env sigma defj.uj_type ar with
       | Some sigma -> sigma
       | None ->
         error_ill_typed_rec_body ?loc env sigma
@@ -415,13 +415,17 @@ let rec execute env sigma cstr =
         sigma, judge_of_int env i
 
 and execute_recdef env sigma (names,lar,vdef) =
+  (* MS: FIXME adapt to new way of typechecking fix *)
   let sigma, larj = execute_array env sigma lar in
   let sigma, lara = Array.fold_left_map (assumption_of_judgment env) sigma larj in
   let env1 = push_rec_types (names,lara,vdef) env in
   let sigma, vdefj = execute_array env1 sigma vdef in
   let vdefv = Array.map j_val vdefj in
   let sigma = check_type_fixpoint env1 sigma names lara vdefj in
-  sigma, (names,lara,vdefv)
+  (* sigma, (names,lara,vdefv) *)
+  (* MS: needed ? *)
+  (sigma, (names, Array.Smart.map (nf_evar sigma) lara,
+           Array.Smart.map (nf_evar sigma) vdefv))
 
 and execute_array env = Array.fold_left_map (execute env)
 
